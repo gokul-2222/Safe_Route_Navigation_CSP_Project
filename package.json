@@ -1,0 +1,14 @@
+{
+  "name": "safepath-navigator",
+  "version": "1.0.0",
+  "description": "SafePath - Personal Safety Route Planner",
+  "scripts": {
+    "install:all": "npm install --prefix backend && npm install --prefix frontend",
+    "dev:backend": "npm run dev --prefix backend",
+    "dev:frontend": "npm run dev --prefix frontend",
+    "start": "node backend/src/server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}

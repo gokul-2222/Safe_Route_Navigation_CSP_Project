@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SafePath - Personal Safety Route Planner</title>
+    <!-- Google Fonts: Outfit and Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- FontAwesome for Premium Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    
+    <!-- Custom Style Sheet -->
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation & Control Panel -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fa-solid fa-shield-halved logo-icon"></i>
+                    <span>Safe<span class="logo-accent">Path</span></span>
+                </div>
+                
+                <!-- Language Dropdown Selector -->
+                <div class="lang-selector-container">
+                    <select id="language-select" class="lang-dropdown" aria-label="Language Selector">
+                        <option value="en" selected>EN</option>
+                        <option value="hi">हिन्दी</option>
+                        <option value="ta">தமிழ்</option>
+                        <option value="kn">ಕನ್ನಡ</option>
+                        <option value="te">తెలుగు</option>
+                    </select>
+                </div>
+
+                <button class="toggle-sidebar-btn" id="toggleSidebar" aria-label="Toggle Sidebar">
+                    <i class="fa-solid fa-chevron-left"></i>
+                </button>
+            </div>
+
+            <!-- Main Navigation Tabs -->
+            <nav class="sidebar-nav">
+                <button class="nav-tab active" data-tab="routes-tab" data-i18n="find-route">
+                    <i class="fa-solid fa-route"></i>
+                    <span>Find Route</span>
+                </button>
+                <button class="nav-tab" data-tab="sos-tab" data-i18n="sos-center">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                    <span>SOS Center</span>
+                </button>
+                <button class="nav-tab" data-tab="tracking-tab" data-i18n="live-track">
+                    <i class="fa-solid fa-location-crosshairs"></i>
+                    <span>Live Track</span>
+                </button>
+                <button class="nav-tab" data-tab="settings-tab" data-i18n="settings">
+                    <i class="fa-solid fa-gear"></i>
+                    <span>Settings</span>
+                </button>
+            </nav>
+
+            <div class="sidebar-content">
+                <!-- Tab 1: Find Route -->
+                <div class="tab-pane active" id="routes-tab">
+                    <div class="search-section card">
+                        <h3 data-i18n="plan-journey">Plan Journey</h3>
+                        <div class="input-group">
+                            <label for="source-input" data-i18n="starting-point"><i class="fa-solid fa-location-dot source-dot"></i> Starting Point</label>
+                            <div class="search-input-wrapper">
+                                <input type="text" id="source-input" placeholder="Enter starting address or click map..." data-i18n="placeholder-start" autocomplete="off">
+                                <button class="locate-me-btn" id="btn-locate-source" title="Use current location">
+                                    <i class="fa-solid fa-crosshairs"></i>
+                                </button>
+                            </div>
+                            <div class="suggestions" id="source-suggestions"></div>
+                        </div>
+
+                        <div class="input-group">
+                            <label for="dest-input" data-i18n="dest-point"><i class="fa-solid fa-circle-dot dest-dot"></i> Destination</label>
+                            <div class="search-input-wrapper">
+                                <input type="text" id="dest-input" placeholder="Enter destination or click map..." data-i18n="placeholder-dest" autocomplete="off">
+                                <button class="map-picker-btn" id="btn-pick-dest" title="Click on map to select">
+                                    <i class="fa-solid fa-map-pin"></i>
+                                </button>
+                            </div>
+                            <div class="suggestions" id="dest-suggestions"></div>
+                        </div>
+
+                        <div class="route-actions">
+                            <button class="btn btn-primary btn-block" id="btn-find-routes" data-i18n="calc-routes">
+                                <i class="fa-solid fa-magnifying-glass"></i> Calculate Safe Routes
+                            </button>
+                            <button class="btn btn-secondary btn-block" id="btn-clear-routes" data-i18n="clear-map">
+                                Clear Map
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Routes Results Section -->
+                    <div class="results-section" id="results-section" style="display: none;">
+                        <h3 data-i18n="available-routes">Available Routes</h3>
+                        <div class="route-cards-container" id="route-cards-list">
+                            <!-- Cards will be dynamically inserted here -->
+                        </div>
+
+                        <!-- Safety Analysis Breakdown (Detailed view of selected route) -->
+                        <div class="safety-analysis card" id="safety-analysis-details" style="display: none;">
+                            <div class="analysis-header">
+                                <h4 data-i18n="safety-breakdown">Safety Score Breakdown</h4>
+                                <div class="safety-pill" id="analysis-safety-level">Safe</div>
+                            </div>
+                            
+                            <div class="factor-list">
+                                <div class="factor-item">
+                                    <div class="factor-info">
+                                        <span class="factor-name" data-i18n="lighting"><i class="fa-solid fa-lightbulb"></i> Street Lighting</span>
+                                        <span class="factor-value" id="factor-lighting">High</span>
+                                    </div>
+                                    <div class="progress-bar-bg">
+                                        <div class="progress-bar" id="bar-lighting" style="width: 90%;"></div>
+                                    </div>
+                                </div>
+
+                                <div class="factor-item">
+                                    <div class="factor-info">
+                                        <span class="factor-name" data-i18n="crowd"><i class="fa-solid fa-users"></i> Crowd Density</span>
+                                        <span class="factor-value" id="factor-crowd">Optimal</span>
+                                    </div>
+                                    <div class="progress-bar-bg">
+                                        <div class="progress-bar" id="bar-crowd" style="width: 85%;"></div>
+                                    </div>
+                                </div>
+
+                                <div class="factor-item">
+                                    <div class="factor-info">
+                                        <span class="factor-name" data-i18n="police"><i class="fa-solid fa-building-shield"></i> Police Presence</span>
+                                        <span class="factor-value" id="factor-police">Active Patrols</span>
+                                    </div>
+                                    <div class="progress-bar-bg">
+                                        <div class="progress-bar" id="bar-police" style="width: 75%;"></div>
+                                    </div>
+                                </div>
+
+                                <div class="factor-item">
+                                    <div class="factor-info">
+                                        <span class="factor-name" data-i18n="transit"><i class="fa-solid fa-bus"></i> Public Transit</span>
+                                        <span class="factor-value" id="factor-transit">Accessible</span>
+                                    </div>
+                                    <div class="progress-bar-bg">
+                                        <div class="progress-bar" id="bar-transit" style="width: 80%;"></div>
+                                    </div>
+                                </div>
+
+                                <div class="factor-item">
+                                    <div class="factor-info">
+                                        <span class="factor-name" data-i18n="traffic"><i class="fa-solid fa-car-side"></i> Traffic Conditions</span>
+                                        <span class="factor-value" id="factor-traffic">Moderate</span>
+                                    </div>
+                                    <div class="progress-bar-bg">
+                                        <div class="progress-bar" id="bar-traffic" style="width: 70%;"></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <button class="btn btn-success btn-block" id="btn-start-journey" data-i18n="start-safest">
+                                <i class="fa-solid fa-navigation"></i> Start Safest Journey
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab 2: SOS Center -->
+                <div class="tab-pane" id="sos-tab">
+                    <div class="sos-center card">
+                        <h3 data-i18n="sos-action">Emergency SOS Action</h3>
+                        <p class="section-desc" data-i18n="sos-desc">Instantly alert emergency services and your pre-configured safety contacts with your live location link.</p>
+                        
+                        <div class="big-sos-trigger-container">
+                            <button class="big-sos-btn" id="btn-sos-trigger">
+                                <span>SOS</span>
+                                <span class="sos-subtext" data-i18n="sos-btn-desc">Press and Hold</span>
+                            </button>
+                            <div class="sos-hold-progress" id="sos-hold-ring"></div>
+                        </div>
+
+                        <div class="emergency-contacts-summary">
+                            <h4 data-i18n="active-contacts">Active Safety Contacts</h4>
+                            <div id="sos-contacts-list-preview" class="compact-contacts-list">
+                                <!-- Preview of contacts -->
+                            </div>
+                        </div>
+
+                        <div class="emergency-actions-grid">
+                            <a href="tel:100" class="emergency-call-card call-police">
+                                <i class="fa-solid fa-phone-volume"></i>
+                                <span data-i18n="call-police">Call Police / ERSS (100)</span>
+                            </a>
+                            <a href="tel:181" class="emergency-call-card call-police" style="background: linear-gradient(135deg, #db2777 0%, #be185d 100%); box-shadow: 0 4px 15px rgba(219, 39, 119, 0.3);">
+                                <i class="fa-solid fa-phone-volume"></i>
+                                <span data-i18n="call-women">Women Helpline (181)</span>
+                            </a>
+                            <a href="tel:108" class="emergency-call-card call-ambulance">
+                                <i class="fa-solid fa-truck-medical"></i>
+                                <span data-i18n="call-ambulance">Ambulance (108)</span>
+                            </a>
+                            <a href="tel:101" class="emergency-call-card call-ambulance" style="background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%); box-shadow: 0 4px 15px rgba(234, 88, 12, 0.3);">
+                                <i class="fa-solid fa-fire"></i>
+                                <span data-i18n="call-fire">Fire Services (101)</span>
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- SOS Incident History / Logger -->
+                    <div class="sos-history card">
+                        <h4 data-i18n="recent-alerts">Recent Security Alerts</h4>
+                        <div class="history-list" id="sos-history-log">
+                            <div class="empty-state">No recent SOS triggers. Stay safe!</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab 3: Live Tracking -->
+                <div class="tab-pane" id="tracking-tab">
+                    <div class="tracking-control card">
+                        <h3 data-i18n="live-tracking">Live Journey Tracking</h3>
+                        <p class="section-desc" data-i18n="tracking-desc">Share your real-time path with friends and family. They can track your precise safety status live.</p>
+
+                        <div class="tracking-inactive-state" id="tracking-inactive">
+                            <i class="fa-solid fa-map-location-dot big-icon"></i>
+                            <p data-i18n="tracking-inactive">No active journey currently. Find a route and click <strong>"Start Safest Journey"</strong> to begin tracking.</p>
+                        </div>
+
+                        <div class="tracking-active-state" id="tracking-active" style="display: none;">
+                            <div class="journey-status-header">
+                                <span class="pulse-indicator"></span>
+                                <span class="status-label" data-i18n="journey-in-progress">Journey In Progress</span>
+                            </div>
+                            
+                            <div class="tracking-progress-container">
+                                <div class="progress-stats">
+                                    <div class="stat">
+                                        <span class="stat-label" data-i18n="safety-status">Safety Status</span>
+                                        <span class="stat-value text-safe" id="track-safety-status" data-i18n="secure">SECURE</span>
+                                    </div>
+                                    <div class="stat">
+                                        <span class="stat-label" data-i18n="distance-remaining">Distance</span>
+                                        <span class="stat-value" id="track-distance">0.0 km</span>
+                                    </div>
+                                    <div class="stat">
+                                        <span class="stat-label" data-i18n="remaining">Remaining</span>
+                                        <span class="stat-value" id="track-eta">12 mins</span>
+                                    </div>
+                                </div>
+                                <div class="journey-progress-bar-bg">
+                                    <div class="journey-progress-bar" id="track-progress" style="width: 0%;"></div>
+                                </div>
+                            </div>
+
+                            <div class="action-buttons">
+                                <button class="btn btn-primary btn-block" id="btn-share-link" data-i18n="share-live-link">
+                                    <i class="fa-solid fa-share-nodes"></i> Share Live Link
+                                </button>
+                                <button class="btn btn-danger btn-block" id="btn-end-journey" data-i18n="end-journey">
+                                    <i class="fa-solid fa-circle-stop"></i> End Journey
+                                </button>
+                            </div>
+
+                            <div class="alert-notifications card">
+                                <h5 data-i18n="live-feed">Live Security Feed</h5>
+                                <div class="alert-feed" id="alert-feed-list">
+                                    <div class="feed-item">
+                                        <i class="fa-solid fa-circle-info text-info"></i>
+                                        <span>Journey initiated. Safety systems online.</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab 4: Settings -->
+                <div class="tab-pane" id="settings-tab">
+                    <div class="settings-card card">
+                        <h3 data-i18n="emergency-contacts">Emergency Contacts</h3>
+                        <p class="section-desc" data-i18n="contacts-desc">Manage the contacts notified when SOS or location alerts are activated.</p>
+                        
+                        <form id="add-contact-form" class="settings-form">
+                            <div class="form-row">
+                                <input type="text" id="contact-name" placeholder="Contact Name" data-i18n="placeholder-name" required>
+                                <input type="tel" id="contact-phone" placeholder="Phone Number" data-i18n="placeholder-phone" pattern="[6-9][0-9]{9}" title="Please enter a valid 10-digit Indian mobile number starting with 6, 7, 8, or 9." required>
+                            </div>
+                            <button type="submit" class="btn btn-secondary btn-block" data-i18n="add-contact">Add Contact</button>
+                        </form>
+
+                        <div class="contacts-list" id="settings-contacts-list">
+                            <!-- Dynamic settings contacts list -->
+                        </div>
+                    </div>
+
+                    <div class="settings-card card">
+                        <h3 data-i18n="map-base-layer">Map Base Layer</h3>
+                        <div class="toggle-group">
+                            <span data-i18n="google-style">Google Maps style</span>
+                            <label class="switch">
+                                <input type="checkbox" id="toggle-google-tiles">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="settings-card card">
+                        <h3 data-i18n="map-customization">Map Customization</h3>
+                        <div class="toggle-group">
+                            <span data-i18n="show-heatmap">Show Safety Heatmap</span>
+                            <label class="switch">
+                                <input type="checkbox" id="toggle-heatmap" checked>
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <div class="toggle-group">
+                            <span data-i18n="show-lighting">Show Well-Lit Corridors</span>
+                            <label class="switch">
+                                <input type="checkbox" id="toggle-lighting" checked>
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <div class="toggle-group">
+                            <span data-i18n="show-police">Show Police Stations</span>
+                            <label class="switch">
+                                <input type="checkbox" id="toggle-police" checked>
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Map Area -->
+        <main class="map-container">
+            <div id="map"></div>
+
+            <!-- Quick Access Floating Actions -->
+            <div class="map-floating-controls">
+                <button class="floating-btn" id="btn-recenter-map" title="Recenter Location">
+                    <i class="fa-solid fa-location-arrow"></i>
+                </button>
+                <button class="floating-btn btn-danger-pulse" id="btn-quick-sos" title="EMERGENCY SOS">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                </button>
+            </div>
+
+            <!-- Notification Banner overlay -->
+            <div class="toast-notification" id="toast-banner">
+                <i class="fa-solid fa-circle-check"></i>
+                <span id="toast-message">Ready to plan safe route</span>
+            </div>
+        </main>
+    </div>
+
+    <!-- SOS Trigger Full-screen Overlay -->
+    <div class="sos-fullscreen-overlay" id="sos-overlay">
+        <div class="sos-overlay-content">
+            <div class="sos-warning-shield">
+                <i class="fa-solid fa-shield-halved"></i>
+            </div>
+            <h2 data-i18n="sos-alerting-title">EMERGENCY SOS ALERTING</h2>
+            <p data-i18n="sos-alerting-desc">Notifying emergency contacts and local security services in...</p>
+            
+            <div class="sos-countdown" id="sos-countdown-timer">3</div>
+            
+            <button class="btn btn-glass-danger btn-large" id="btn-cancel-sos" data-i18n="cancel-alert">Cancel Alert</button>
+        </div>
+    </div>
+
+    <!-- Live SOS Active Screen -->
+    <div class="sos-active-fullscreen" id="sos-active-overlay" style="display: none;">
+        <div class="sos-active-content">
+            <div class="sos-active-shield">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <h1 class="blink" data-i18n="sos-active-title">SOS SIGNAL ACTIVE</h1>
+            <div class="sos-coordinates-box card">
+                <p><strong><span data-i18n="my-coordinates">My Coordinates</span>:</strong></p>
+                <p id="sos-active-coords">Detecting position...</p>
+                <p class="live-sharing-p"><i class="fa-solid fa-wifi"></i> Live GPS beacon active</p>
+            </div>
+            <div class="notified-contacts-container card">
+                <h4 data-i18n="notified-list-title">Notifying contacts via SMS:</h4>
+                <ul id="sos-active-notified-list">
+                    <!-- list of contacts -->
+                </ul>
+            </div>
+            
+            <p class="security-instructions" data-i18n="siren-instructions">Siren is sounding. Remain calm. Seek a crowded, well-lit area or run towards a police station shown on the map.</p>
+            
+            <div class="sos-active-buttons">
+                <button class="btn btn-secondary" id="btn-mute-siren" data-i18n="mute-siren"><i class="fa-solid fa-volume-xmark"></i> Mute Siren</button>
+                <button class="btn btn-danger" id="btn-stop-sos" data-i18n="deactivate-sos"><i class="fa-solid fa-circle-stop"></i> Deactivate SOS</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    
+    <!-- ES Modules App Logic -->
+    <script type="module" src="js/app.js"></script>
+</body>
+</html>
