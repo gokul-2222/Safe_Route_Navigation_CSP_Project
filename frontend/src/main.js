@@ -27,6 +27,11 @@ let btnSosTrigger, btnQuickSos, btnCancelSos, btnMuteSiren, btnStopSos;
 let sosOverlay, sosActiveOverlay, sosCountdownTimer, sosActiveCoords, sosActiveNotifiedList;
 let toastBanner, toastMessage;
 
+// Travel Mode & Chatbox references
+let btnModeWalk, btnModeVehicle;
+let btnToggleChat, btnCloseChat, chatboxContainer, chatboxInput, btnSendChat, chatboxMessages;
+let currentTravelMode = 'walk';
+
 // Debounce timers
 let sourceTimeout = null;
 let destTimeout = null;
@@ -127,6 +132,16 @@ function initializeDOM() {
 
     toastBanner = document.getElementById('toast-banner');
     toastMessage = document.getElementById('toast-message');
+
+    // Travel Mode & Chatbox caching
+    btnModeWalk = document.getElementById('btn-mode-walk');
+    btnModeVehicle = document.getElementById('btn-mode-vehicle');
+    btnToggleChat = document.getElementById('btn-toggle-chat');
+    btnCloseChat = document.getElementById('btn-close-chat');
+    chatboxContainer = document.getElementById('chatbox-container');
+    chatboxInput = document.getElementById('chatbox-input');
+    btnSendChat = document.getElementById('btn-send-chat');
+    chatboxMessages = document.getElementById('chatbox-messages');
 }
 
 // ─── EVENT HANDLERS ──────────────────────────────────────────────────────────
@@ -326,6 +341,54 @@ function setupEventHandlers() {
             ToastComponent.show(e.target.checked ? 'Map style set to Google Maps.' : 'Map style set to Dark Mode.');
         });
     }
+
+    // M. Travel Mode Selection
+    if (btnModeWalk) {
+        btnModeWalk.addEventListener('click', () => {
+            currentTravelMode = 'walk';
+            btnModeWalk.classList.add('active');
+            if (btnModeVehicle) btnModeVehicle.classList.remove('active');
+            ToastComponent.show('Travel mode set to Walking.');
+        });
+    }
+    if (btnModeVehicle) {
+        btnModeVehicle.addEventListener('click', () => {
+            currentTravelMode = 'vehicle';
+            btnModeVehicle.classList.add('active');
+            if (btnModeWalk) btnModeWalk.classList.remove('active');
+            ToastComponent.show('Travel mode set to Vehicle.');
+        });
+    }
+
+    // N. Floating Chatbox Interactions
+    if (btnToggleChat) {
+        btnToggleChat.addEventListener('click', () => {
+            if (chatboxContainer.style.display === 'none') {
+                chatboxContainer.style.display = 'flex';
+                btnToggleChat.classList.add('active');
+                chatboxInput.focus();
+            } else {
+                chatboxContainer.style.display = 'none';
+                btnToggleChat.classList.remove('active');
+            }
+        });
+    }
+    if (btnCloseChat) {
+        btnCloseChat.addEventListener('click', () => {
+            chatboxContainer.style.display = 'none';
+            if (btnToggleChat) btnToggleChat.classList.remove('active');
+        });
+    }
+    if (btnSendChat) {
+        btnSendChat.addEventListener('click', sendChatMessage);
+    }
+    if (chatboxInput) {
+        chatboxInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                sendChatMessage();
+            }
+        });
+    }
 }
 
 // ─── SUGGESTIONS HELPERS ─────────────────────────────────────────────────────
@@ -515,7 +578,7 @@ async function calculateAndDisplayRoutes() {
     }
 
     try {
-        const routes = await RouteController.findRoutes(MapState.sourceCoords, MapState.destCoords, selectRoute);
+        const routes = await RouteController.findRoutes(MapState.sourceCoords, MapState.destCoords, currentTravelMode, selectRoute);
         if (routes && routes.length > 0) {
             displaySafetyBreakdown(routes[0]);
             renderRouteCards(routes);
@@ -897,4 +960,70 @@ function renderContactsList() {
 function renderSOSHistoryList() {
     const logs = SOSController.getSOSLogs();
     HistoryComponent.render(logs);
+}
+
+// ─── CHATBOX UTILS ────────────────────────────────────────────────────────────
+async function sendChatMessage() {
+    const text = chatboxInput.value.trim();
+    if (!text) return;
+
+    // Append user message
+    appendChatMessage(text, 'user');
+    chatboxInput.value = '';
+
+    // Add typing indicator
+    const typingIndicator = showChatTypingIndicator();
+
+    try {
+        const response = await fetch('/api/v1/chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ message: text })
+        });
+        if (!response.ok) throw new Error('Failed to get response');
+        const data = await response.json();
+        
+        // Remove typing indicator
+        typingIndicator.remove();
+
+        // Append assistant response
+        appendChatMessage(data.data.reply, 'assistant');
+    } catch (err) {
+        console.error(err);
+        typingIndicator.remove();
+        appendChatMessage('Sorry, I encountered an error. Please try again.', 'system');
+    }
+}
+
+function appendChatMessage(text, sender) {
+    if (!chatboxMessages) return;
+    const div = document.createElement('div');
+    div.className = `chat-message ${sender}`;
+    
+    // Convert markdown bold/italics and newlines to HTML
+    let formattedText = text
+        .replace(/\n/g, '<br>')
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.*?)\*/g, '<em>$1</em>');
+
+    div.innerHTML = formattedText;
+    chatboxMessages.appendChild(div);
+    chatboxMessages.scrollTop = chatboxMessages.scrollHeight;
+}
+
+function showChatTypingIndicator() {
+    const div = document.createElement('div');
+    div.className = 'chat-message assistant typing-indicator-msg';
+    div.innerHTML = `
+        <div class="typing-indicator">
+            <span class="typing-dot"></span>
+            <span class="typing-dot"></span>
+            <span class="typing-dot"></span>
+        </div>
+    `;
+    chatboxMessages.appendChild(div);
+    chatboxMessages.scrollTop = chatboxMessages.scrollHeight;
+    return div;
 }

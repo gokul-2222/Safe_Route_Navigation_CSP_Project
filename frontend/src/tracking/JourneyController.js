@@ -56,10 +56,13 @@ export const JourneyController = {
 
     JourneyState.activeJourneyRoute = route;
 
+    const isVehicle = route.mode === 'vehicle';
+    const markerIconClass = isVehicle ? 'fa-car-side' : 'fa-person-walking';
+
     // Create user locator custom icon
     const icon = L.divIcon({
         className: 'safety-marker',
-        html: `<div class="marker-inner pulse-indicator" style="background-color: #3b82f6; border-color: white; width: 24px; height: 24px;"><i class="fa-solid fa-person-walking" style="font-size: 0.75rem;"></i></div>`,
+        html: `<div class="marker-inner pulse-indicator" style="background-color: #3b82f6; border-color: white; width: 24px; height: 24px;"><i class="fa-solid ${markerIconClass}" style="font-size: 0.75rem;"></i></div>`,
         iconSize: [24, 24],
         iconAnchor: [12, 12]
     });
@@ -80,7 +83,8 @@ export const JourneyController = {
         currentCoordsIndex: JourneyState.currentCoordsIndex
     }));
 
-    const stepDuration = Math.round(300000 / coordinates.length);
+    const totalSimTime = isVehicle ? 60000 : 300000; // 1 min for vehicle, 5 mins for walk
+    const stepDuration = Math.round(totalSimTime / coordinates.length);
 
     JourneyState.trackingInterval = setInterval(() => {
         JourneyState.currentCoordsIndex++;

@@ -9,8 +9,13 @@ export const RouteCardComponent = {
     routes.forEach(route => {
         const isSelected = route.id === selectedRouteId;
         const distKm = (route.distance / 1000).toFixed(1);
-        const durationFormatted = formatDuration(route.duration);
-        const vehicleFormatted = formatDuration(Math.round(route.duration / 5.5)); // 5.5x faster in vehicle
+
+        const isVehicle = route.mode === 'vehicle';
+        const walkDur = isVehicle ? Math.round(route.duration * 8.5) : route.duration;
+        const vehicleDur = isVehicle ? route.duration : Math.round(route.duration / 8.5);
+
+        const durationFormatted = formatDuration(walkDur);
+        const vehicleFormatted = formatDuration(vehicleDur);
         
         let scoreClass = "badge-safe";
         if (route.safetyScore < 50) scoreClass = "badge-danger";

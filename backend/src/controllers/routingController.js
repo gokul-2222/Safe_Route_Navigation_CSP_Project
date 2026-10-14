@@ -2,7 +2,7 @@ import * as routingService from '../services/routingService.js';
 
 export async function getRoutes(req, res, next) {
   try {
-    const { source, destination } = req.body;
+    const { source, destination, mode } = req.body;
     
     if (!source || !destination) {
       return res.status(400).json({
@@ -30,7 +30,7 @@ export async function getRoutes(req, res, next) {
       });
     }
 
-    const routes = await routingService.calculateRoutes(source, destination);
+    const routes = await routingService.calculateRoutes(source, destination, mode);
     res.json({ status: 'success', data: routes });
   } catch (error) {
     if (error.statusCode) {

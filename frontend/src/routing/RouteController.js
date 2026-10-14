@@ -4,12 +4,12 @@ import { LayerManager } from '../map/LayerManager.js';
 import { RouteRenderer } from './RouteRenderer.js';
 
 export const RouteController = {
-  async findRoutes(source, destination, onRouteSelected) {
+  async findRoutes(source, destination, mode, onRouteSelected) {
     if (!source || !destination) {
       throw new Error("Set both start and destination points.");
     }
 
-    const routes = await RoutingService.getRoutes(source, destination);
+    const routes = await RoutingService.getRoutes(source, destination, mode);
     RouteState.routes = routes;
 
     // Get safety assets dynamically from backend for safest path coordinates

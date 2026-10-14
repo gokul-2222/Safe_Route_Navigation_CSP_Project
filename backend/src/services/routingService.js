@@ -5,7 +5,7 @@ import { cacheService } from './cacheService.js';
 
 const CACHE_TTL_MS = 300000; // 5 minutes TTL for routes
 
-export async function calculateRoutes(sourceCoords, destCoords) {
+export async function calculateRoutes(sourceCoords, destCoords, mode = 'walk') {
   if (!Array.isArray(sourceCoords) || sourceCoords.length !== 2 || !Array.isArray(destCoords) || destCoords.length !== 2) {
     const err = new Error('Invalid source or destination coordinate format');
     err.statusCode = 400;
@@ -25,7 +25,7 @@ export async function calculateRoutes(sourceCoords, destCoords) {
     throw err;
   }
 
-  const cacheKey = `route:${sLat.toFixed(5)},${sLng.toFixed(5)}:${dLat.toFixed(5)},${dLng.toFixed(5)}`;
+  const cacheKey = `route:${mode}:${sLat.toFixed(5)},${sLng.toFixed(5)}:${dLat.toFixed(5)},${dLng.toFixed(5)}`;
   const cachedData = cacheService.get(cacheKey);
   if (cachedData) {
     logger.info(`Route cache hit for coords: [${sLat}, ${sLng}] -> [${dLat}, ${dLng}]`);
@@ -34,7 +34,8 @@ export async function calculateRoutes(sourceCoords, destCoords) {
 
   const sourceLngLat = `${sLng},${sLat}`;
   const destLngLat = `${dLng},${dLat}`;
-  const url = `${config.osrmBaseUrl}/route/v1/foot/${sourceLngLat};${destLngLat}?geometries=geojson&overview=full&alternatives=true`;
+  const profile = mode === 'vehicle' ? 'driving' : 'foot';
+  const url = `${config.osrmBaseUrl}/route/v1/${profile}/${sourceLngLat};${destLngLat}?geometries=geojson&overview=full&alternatives=true`;
   
   logger.info(`Routing request from source: ${sourceCoords} to destination: ${destCoords}`);
   
@@ -65,7 +66,8 @@ export async function calculateRoutes(sourceCoords, destCoords) {
             duration: route.duration,
             coordinates: coordinates,
             safetyScore: safetyEvaluation.score,
-            breakdown: safetyEvaluation.breakdown
+            breakdown: safetyEvaluation.breakdown,
+            mode: mode
         };
     });
 
@@ -80,7 +82,7 @@ export async function calculateRoutes(sourceCoords, destCoords) {
 
   } catch (error) {
     logger.warn("Using offline simulated route calculation due to failure:", error.message);
-    const fallback = getFallbackRoutes(sourceCoords, destCoords);
+    const fallback = getFallbackRoutes(sourceCoords, destCoords, mode);
     // Don't cache fallbacks under normal TTL, or cache with low TTL
     cacheService.set(cacheKey, fallback, 30000); // 30 seconds TTL for fallback routes
     return fallback;
@@ -110,6 +112,7 @@ function createSimulatedAlternative(primaryRoute, safetyData) {
       duration: Math.round(primaryRoute.duration * 1.15),
       coordinates: altCoords,
       safetyScore: Math.max(15, safetyEvaluation.score - 10),
+      mode: primaryRoute.mode,
       breakdown: {
           lighting: Math.max(25, safetyEvaluation.breakdown.lighting - 15),
           police: Math.max(20, safetyEvaluation.breakdown.police - 10),
@@ -177,7 +180,7 @@ function getRouteLength(coords) {
   return Math.round(len);
 }
 
-function getFallbackRoutes(source, dest) {
+function getFallbackRoutes(source, dest, mode = 'walk') {
   const safetyData = getSafetyDataForRoute([source, dest]);
 
   const latDiff = dest[0] - source[0];
@@ -186,10 +189,12 @@ function getFallbackRoutes(source, dest) {
   const lngSum = Math.abs(source[1] + dest[1]);
   const coordHash = Math.round((latSum + lngSum) * 100000);
 
+  const speed = mode === 'vehicle' ? 11.1 : 1.3;
+
   // 1. Fastest Route
   const fastestCoords = [source, dest];
   const fastestDist = getRouteLength(fastestCoords);
-  const fastestDur = Math.max(60, Math.round(fastestDist / 1.3));
+  const fastestDur = Math.max(60, Math.round(fastestDist / speed));
   const fastestBreakdown = {
       lighting: Math.min(100, Math.max(20, 40 + ((coordHash >> 5) % 40))),
       police: Math.min(100, Math.max(10, 30 + ((coordHash >> 6) % 35))),
@@ -216,7 +221,7 @@ function getFallbackRoutes(source, dest) {
   ];
   const safestCoords = [source, safestMid1, safestMid2, dest];
   const safestDist = getRouteLength(safestCoords);
-  const safestDur = Math.max(90, Math.round(safestDist / 1.3));
+  const safestDur = Math.max(90, Math.round(safestDist / speed));
   const safestBreakdown = {
       lighting: Math.min(100, Math.max(40, 65 + (coordHash % 35))),
       police: Math.min(100, Math.max(30, 55 + ((coordHash >> 1) % 40))),
@@ -243,7 +248,7 @@ function getFallbackRoutes(source, dest) {
   ];
   const alternateCoords = [source, altMid1, altMid2, dest];
   const altDist = getRouteLength(alternateCoords);
-  const altDur = Math.max(120, Math.round(altDist / 1.3));
+  const altDur = Math.max(120, Math.round(altDist / speed));
   const altBreakdown = {
       lighting: Math.min(100, Math.max(10, 25 + ((coordHash >> 10) % 35))),
       police: Math.min(100, Math.max(5, 15 + ((coordHash >> 11) % 30))),
@@ -267,7 +272,8 @@ function getFallbackRoutes(source, dest) {
       coordinates: safestCoords,
       safetyScore: safestScore,
       color: "var(--color-safe)",
-      breakdown: safestBreakdown
+      breakdown: safestBreakdown,
+      mode: mode
   };
 
   const route2 = {
@@ -278,7 +284,8 @@ function getFallbackRoutes(source, dest) {
       coordinates: fastestCoords,
       safetyScore: fastestScore,
       color: "var(--color-primary)",
-      breakdown: fastestBreakdown
+      breakdown: fastestBreakdown,
+      mode: mode
   };
 
   const route3 = {
@@ -289,7 +296,8 @@ function getFallbackRoutes(source, dest) {
       coordinates: alternateCoords,
       safetyScore: altScore,
       color: "var(--text-muted)",
-      breakdown: altBreakdown
+      breakdown: altBreakdown,
+      mode: mode
   };
 
   return [route1, route2, route3];

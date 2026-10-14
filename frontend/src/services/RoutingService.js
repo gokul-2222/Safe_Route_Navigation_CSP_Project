@@ -1,11 +1,11 @@
 export const RoutingService = {
-  async getRoutes(source, destination) {
+  async getRoutes(source, destination, mode = 'walk') {
     const res = await fetch('/api/v1/routes', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ source, destination })
+      body: JSON.stringify({ source, destination, mode })
     });
     if (!res.ok) throw new Error('Routing computation failed');
     const body = await res.json();

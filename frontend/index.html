@@ -70,6 +70,17 @@
                     <div class="search-section card">
                         <h3 data-i18n="plan-journey">Plan Journey</h3>
                         <div class="input-group">
+                            <label><i class="fa-solid fa-person-walking"></i> Travel Mode</label>
+                            <div class="travel-mode-selector">
+                                <button type="button" class="mode-btn active" id="btn-mode-walk" data-mode="walk">
+                                    <i class="fa-solid fa-person-walking"></i> Walk
+                                </button>
+                                <button type="button" class="mode-btn" id="btn-mode-vehicle" data-mode="vehicle">
+                                    <i class="fa-solid fa-car"></i> Vehicle
+                                </button>
+                            </div>
+                        </div>
+                        <div class="input-group">
                             <label for="source-input" data-i18n="starting-point"><i class="fa-solid fa-location-dot source-dot"></i> Starting Point</label>
                             <div class="search-input-wrapper">
                                 <input type="text" id="source-input" placeholder="Enter starting address or click map..." data-i18n="placeholder-start" autocomplete="off">
@@ -168,7 +179,7 @@
                             </div>
 
                             <button class="btn btn-success btn-block" id="btn-start-journey" data-i18n="start-safest">
-                                <i class="fa-solid fa-navigation"></i> Start Safest Journey
+                                <i class="fa-solid fa-navigation"></i> Start Journey
                             </button>
                         </div>
                     </div>
@@ -350,9 +361,37 @@
                 <button class="floating-btn" id="btn-recenter-map" title="Recenter Location">
                     <i class="fa-solid fa-location-arrow"></i>
                 </button>
+                <button class="floating-btn" id="btn-toggle-chat" title="Safety Assistant Chat">
+                    <i class="fa-solid fa-comments"></i>
+                </button>
                 <button class="floating-btn btn-danger-pulse" id="btn-quick-sos" title="EMERGENCY SOS">
                     <i class="fa-solid fa-triangle-exclamation"></i>
                 </button>
+            </div>
+
+            <!-- Floating Chatbox -->
+            <div class="chatbox-container" id="chatbox-container" style="display: none;">
+                <div class="chatbox-header">
+                    <div class="chatbox-title">
+                        <i class="fa-solid fa-shield-halved text-primary" style="color: var(--color-primary);"></i>
+                        <span>SafePath Assistant</span>
+                        <span class="online-indicator"></span>
+                    </div>
+                    <button class="chatbox-close-btn" id="btn-close-chat" title="Close Chat">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+                <div class="chatbox-messages" id="chatbox-messages">
+                    <div class="chat-message assistant">
+                        Hello! I am your SafePath assistant. How can I help you navigate safely today?
+                    </div>
+                </div>
+                <div class="chatbox-input-area">
+                    <input type="text" id="chatbox-input" placeholder="Type a message..." autocomplete="off">
+                    <button id="btn-send-chat" class="chatbox-send-btn" title="Send Message">
+                        <i class="fa-solid fa-paper-plane"></i>
+                    </button>
+                </div>
             </div>
 
             <!-- Notification Banner overlay -->
